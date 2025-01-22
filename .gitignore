@@ -1,0 +1,4 @@
+out/bin/*
+out/debug/*
+.idea/
+*.gguf
