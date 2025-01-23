@@ -41,6 +41,7 @@ void LlavaPhiMini::initialize(const std::string& modelPath, const std::string& c
 void LlavaPhiMini::processImage(const std::string &imagePath, const std::function<void(const std::string &response)> &
                                 responseCallback)
 {
+    int numPast = 0;
 
     const std::string systemPrompt =
         "A chat between a curious human and an artificial intelligence assistant. "
@@ -50,13 +51,15 @@ void LlavaPhiMini::processImage(const std::string &imagePath, const std::functio
         "Use simple words.\nASSISTANT:";
 
     std::string response;
-    bool parseSpecial, addSpecial = true;
+    // bool parseSpecial, addSpecial = true;
     // responseCallback(response);
 
     //load image
     llava_image_embed *imageEmbed = loadEmbedImage(imagePath, 4);
 
     // tokenize prompt
+
+    llava_eval_image_embed(m_pLlamaCtx, imageEmbed, params->n_batch, &numPast);
 
 
     llava_image_embed_free(imageEmbed);
@@ -69,9 +72,9 @@ void LlavaPhiMini::initLlamaModel(const std::string& modelPath, int numGpuLayers
     llama_model_params model_params = llama_model_default_params();
     model_params.n_gpu_layers = numGpuLayers;
 
-    m_pLlamaModel = llama_load_model_from_file(modelPath.toLatin1(), model_params);
+    m_pLlamaModel = llama_load_model_from_file(modelPath.c_str(), model_params);
     if (m_pLlamaModel == nullptr) {
-        qDebug() << __func__ << ": unable to load model\n";
+        printf("%s: unable to load model\n", __func__);
         return;
     }
 }
@@ -79,9 +82,9 @@ void LlavaPhiMini::initLlamaModel(const std::string& modelPath, int numGpuLayers
 llava_image_embed* LlavaPhiMini::loadEmbedImage(const std::string& imagePath, int numCpuThreads)
 {
     llava_image_embed *embed = llava_image_embed_make_with_filename(m_pClipCtx, numCpuThreads,
-                                                                    imagePath.toLatin1());
+                                                                    imagePath.c_str()());
     if (!embed) {
-        qDebug() << __func__ << ": failed to embed image?\n" << imagePath;
+        printf("%s: failed to embed image = %s\n",__func__, imagePath);
         return nullptr;
     }
     return embed;
@@ -89,7 +92,7 @@ llava_image_embed* LlavaPhiMini::loadEmbedImage(const std::string& imagePath, in
 
 void LlavaPhiMini::evaluateString(const std::string& prompt, int n_batch, int *n_past, bool add_bos)
 {
-    std::vector<llama_token> embd_inp = tokenizePrompt(prompt, add_bos, true);
+    std::vector<llama_token> embd_inp = tokenizePrompt(prompt, true);
     evaluateTokens(embd_inp, n_batch, n_past);
 }
 
@@ -100,7 +103,7 @@ void LlavaPhiMini::evaluateId(int id, int* n_past) // ????
     evaluateTokens(tokens, 1, n_past);
 }
 
-bool LlavaPhiMini::evaluateTokens(std::vector<llama_token>& tokens, int n_batch, int* n_past)
+bool LlavaPhiMini::evaluateTokens(std::vector<llama_token>& tokens, int n_batch, int* n_past) const
 {
     int N = (int) tokens.size();
     for (int i = 0; i < N; i += n_batch) {
@@ -109,11 +112,13 @@ bool LlavaPhiMini::evaluateTokens(std::vector<llama_token>& tokens, int n_batch,
             n_eval = n_batch;
         }
         if (llama_decode(m_pLlamaCtx, llama_batch_get_one(&tokens[i], n_eval))) {
-            qDebug() << __func__ << " : failed to eval. token" << i << "/" << N << "batch size = " << n_batch << "," << " n_past = " << *n_past;
+           printf("%s: failed to eval. token %d/%d batch size = %d, n_past = %d",
+                  __func__, i ,N, n_batch, *n_past);
             return false;
         }
         *n_past += n_eval;
     }
+    return true;
 }
 
 std::vector<llama_token> LlavaPhiMini::tokenizePrompt(const std::string& prompt, bool addSpecial)
@@ -128,6 +133,7 @@ std::vector<llama_token> LlavaPhiMini::tokenizePrompt(const std::string& prompt,
     } else {
         result.resize(n_tokens);
     }
+    return result;;
 }
 
 void LlavaPhiMini::sampleResponse()

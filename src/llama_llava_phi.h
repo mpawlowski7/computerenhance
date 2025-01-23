@@ -28,8 +28,8 @@ private:
     struct llava_image_embed* loadEmbedImage(const std::string& imagePath, int numCpuThreads);
     void                      evaluateString(const std::string& prompt, int n_batch, int* n_past, bool add_bos);
     void                      evaluateId(int id, int* n_past);
-    bool                      evaluateTokens(std::vector<llama_token>& tokens, int n_batch, int* n_past);
-    std::vector<llama_token>  tokenizePrompt(const std::string& prompt, bool addBos, bool addSpecial);
+    bool                      evaluateTokens(std::vector<llama_token>& tokens, int n_batch, int* n_past) const;
+    std::vector<llama_token>  tokenizePrompt(const std::string& prompt, bool addSpecial);
     void                      sampleResponse();
 };
 
