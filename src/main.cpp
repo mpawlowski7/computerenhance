@@ -1,9 +1,9 @@
+#include <llama_llava_phi.h>
+
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 
 #include <QDebug>
-
-#include <llama_llava_phi.h>
 
 #define MODEL_PATH "../models/"
 #define CLIP_PATH "../models/"
@@ -15,8 +15,8 @@ int main(int argc, char *argv[])
     app.setOrganizationName("Michal Pawlowski");
     app.setApplicationName(QObject::tr("DoorbellCamera"));
 
-    LlavaPhiMini llava;
-    llava.initialize(MODEL_PATH, CLIP_PATH, NUM_GPU_LAYERS);
+    std::unique_ptr<LlavaPhiMini> llava = std::make_unique<LlavaPhiMini>();
+    llava->initialize(MODEL_PATH, CLIP_PATH, NUM_GPU_LAYERS);
 
     QQmlApplicationEngine engine;
     QObject::connect(
