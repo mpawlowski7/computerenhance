@@ -1,13 +1,17 @@
 #include <llama_llava_phi.h>
+#include <fmt/format.h>
 
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 
-#include <QDebug>
+#define MODEL_PATH "../models/llava-phi-3-mini-int4.gguf"
+#define CLIP_PATH "../models/llava-phi-3-mini-mmproj-f16.gguf"
+#define NUM_GPU_LAYERS 20
 
-#define MODEL_PATH "../models/"
-#define CLIP_PATH "../models/"
-#define NUM_GPU_LAYERS  99
+void printResponse(const std::string& response)
+{
+    printf("%s", response.c_str());
+}
 
 int main(int argc, char *argv[])
 {
@@ -17,6 +21,7 @@ int main(int argc, char *argv[])
 
     std::unique_ptr<LlavaPhiMini> llava = std::make_unique<LlavaPhiMini>();
     llava->initialize(MODEL_PATH, CLIP_PATH, NUM_GPU_LAYERS);
+    llava->processImage("../img/img01.jpg", printResponse);
 
     QQmlApplicationEngine engine;
     QObject::connect(
@@ -25,6 +30,7 @@ int main(int argc, char *argv[])
 
     engine.loadFromModule("MainModule", "Main");
 
-    qDebug() << "Hello World";
+    printf("Starting app event loop");
+
     return app.exec();
 }

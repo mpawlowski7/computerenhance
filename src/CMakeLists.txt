@@ -16,7 +16,7 @@ qt_add_qml_module(ComputerEnhance
 )
 
 target_link_libraries(ComputerEnhance
-        PRIVATE llava_static llama ggml ggml-base ggml-cpu ggml-cuda
+        PRIVATE llava_static llama ggml ggml-base ggml-cpu ggml-cuda common
         PRIVATE Qt6::Core Qt6::Gui Qt6::Quick
         PRIVATE OpenMP::OpenMP_CXX
         PRIVATE CUDA::cudart_static CUDA::cublas_static CUDA::cublasLt_static

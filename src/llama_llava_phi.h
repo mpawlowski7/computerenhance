@@ -3,12 +3,15 @@
 #include <string>
 #include <functional>
 #include <memory>
+#include <thread>
 
+struct common_sampler;
 struct LlavaContext;
 
 using LlavaContextPtr = std::unique_ptr<LlavaContext>;
 using TokenList = std::vector<int>;
 using ImageEmbed = struct llava_image_embed*;
+using ResponseCallback = std::function<void(const std::string& response)>;
 
 class LlavaPhiMini
 {
@@ -17,16 +20,13 @@ public:
     ~LlavaPhiMini();
 
     void initialize(const std::string& modelPath, const std::string& clipPath, int numGpuLayers);
-    void processImage(const std::string& imagePath, const std::function<void(const std::string& response)>& responseCallback);
+    void processImage(const std::string& imagePath, const ResponseCallback& callback);
 
 private:
     LlavaContextPtr m_ctx;
 
-    void       initLlamaModel(const std::string& modelPath, int nGpuLayers);
-    ImageEmbed loadEmbedImage(const std::string& imagePath, int numCpuThreads);
-    void       evaluateString(const std::string& prompt, int numBatch, int* numPast, bool addSpecial);
-    void       evaluateId(int id, int* numPast);
-    bool       evaluateTokens(TokenList& tokens, int numBatch, int* numPast) const;
-    TokenList  tokenizePrompt(const std::string& prompt, bool addSpecial);
-    void       sampleResponse();
+    void       initLlamaModel(const std::string& modelPath, int numGpuLayers);
+    TokenList  tokenize(const std::string& prompt, bool addSpecialToken);
+    bool       decode(TokenList& tokens, int numBatch, int* numPast) const;
+    void       generateResponse(int* numPast, int numPredict, ResponseCallback callback);
 };

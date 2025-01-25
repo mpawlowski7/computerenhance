@@ -33,7 +33,6 @@ set_target_properties(${LIBNAME} PROPERTIES
 
 # llama
 #
-
 set(LIBNAME llama)
 add_library(${LIBNAME} STATIC IMPORTED GLOBAL)
 set_target_properties(${LIBNAME}
@@ -44,11 +43,20 @@ set_target_properties(${LIBNAME}
 
 # llava
 #
-
 set(LIBNAME llava_static)
 add_library(${LIBNAME} STATIC IMPORTED GLOBAL)
 set_target_properties(${LIBNAME}
     PROPERTIES
+        IMPORTED_LOCATION "${CMAKE_CURRENT_SOURCE_DIR}/lib/lib${LIBNAME}.a"
+        INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include"
+)
+
+# common
+#
+set(LIBNAME common)
+add_library(${LIBNAME} STATIC IMPORTED GLOBAL)
+set_target_properties(${LIBNAME}
+        PROPERTIES
         IMPORTED_LOCATION "${CMAKE_CURRENT_SOURCE_DIR}/lib/lib${LIBNAME}.a"
         INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include"
 )
