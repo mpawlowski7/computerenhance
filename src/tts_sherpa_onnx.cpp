@@ -28,14 +28,20 @@ public:
         QObject::connect(m_audioSink.get(), &QAudioSink::stateChanged,
             [&](QAudio::State state) {
             switch (state) {
+            case QAudio::ActiveState:
+                printf("Audio stream is started\n");
+                m_isStreaming = true;
+                break;
             case QAudio::IdleState:
                 printf("Audio stream is idle\n");
+                m_isStreaming = false;
                 break;
             case QAudio::StoppedState:
                 printf("Audio stream is stopped\n");
                 if (m_audioSink != nullptr && m_audioSink->error() != QAudio::NoError) {
                     printf("Error code =  %d\n", m_audioSink->error());
                 }
+                m_isStreaming = false;
                 break;
             default:
                 break;
@@ -74,6 +80,11 @@ public:
         }
     }
 
+    bool isStreaming() const noexcept
+    {
+        return m_isStreaming;
+    }
+
 private:
     static QByteArray prepareAudioData(const float *samples, int32_t sampleCount) noexcept
     {
@@ -92,6 +103,8 @@ private:
 
     std::unique_ptr<QAudioSink> m_audioSink;
     QIODevice *m_device;
+
+    std::atomic<bool> m_isStreaming = false;
 };
 
 TtsSherpaOnnx::TtsSherpaOnnx() = default;
@@ -138,11 +151,14 @@ void TtsSherpaOnnx::synthesize(const std::string &text) const noexcept
                 format.setSampleFormat(QAudioFormat::Int16);
 
                 _audioPlayer = std::make_unique<AudioStream>(format);
+            }
+            if (progress > 0.0f && !_audioPlayer->isStreaming()) {
                 _audioPlayer->start();
             }
 
             _audioPlayer->writeAudioData(samples, n);
-            if (progress >= 1.0f) {
+
+            if (progress == 1.0f) {
                 _audioPlayer->stop();
                 return 0;
             }

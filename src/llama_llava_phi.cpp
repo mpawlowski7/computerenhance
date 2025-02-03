@@ -34,8 +34,8 @@ struct LlavaPhiMini::LlavaContext
     LlamaClip clip;
     CommonParams params;
     CommonSampler sampler;
-    // TokenList tokensSysPrompt;
-    // TokenList tokensUserPrompt;
+    TokenList tokensSysPrompt;
+    TokenList tokensUserPrompt;
 };
 
 LlavaPhiMini::LlavaPhiMini() {}
@@ -59,11 +59,12 @@ void LlavaPhiMini::initialize(
     common_init();
 
     llama_backend_init();
+
     llama_numa_init(m_ctx->params->numa);
 
     initLlamaModel(modelPath, numGpuLayers);
     if (m_ctx->model == nullptr) {
-        printf("%s: failed to create the m_ctx->model.get()\n", __func__);
+        printf("%s: failed to create the m_ctx->model\n", __func__);
         return;
     }
 
@@ -76,6 +77,22 @@ void LlavaPhiMini::initialize(
     }
 
     m_ctx->clip.reset(clip_model_load(clipPath.c_str(), /*verbosity=*/0));
+    if (m_ctx->clip == nullptr) {
+        printf("%s: failed to load clip projection\n", __func__);
+        return;
+    }
+
+
+    const std::string systemPrompt
+    = "A chat between a curious human and an artificial intelligence assistant. "
+      "The assistant gives helpful and polite answers to the human's "
+      "questions.\nUSER:";
+    const std::string userPrompt = "Describe the person at the door in 3 sentences. Add what "
+                                   "is he wearing and face details.'\nASSISTANT:";
+
+    // Cache the prompt tokens
+    m_ctx->tokensSysPrompt = tokenize(systemPrompt, true);
+    m_ctx->tokensUserPrompt = tokenize(userPrompt, false);
 }
 
 void LlavaPhiMini::initLlamaModel(const std::string &modelPath, int numGpuLayers) noexcept
@@ -98,13 +115,6 @@ void LlavaPhiMini::processImage(
 
     std::string response;
 
-    const std::string systemPrompt
-        = "A chat between a curious human and an artificial intelligence assistant. "
-          "The assistant gives helpful and polite answers to the human's "
-          "questions.\nUSER:";
-    const std::string userPrompt = "Describe the person at the door in 3 sentences. Add what "
-                                   "is he wearing and face details.'\nASSISTANT:";
-
     //load image
     ImageEmbed imageEmbed = llava_image_embed_make_with_filename(
         m_ctx->clip.get(), params->cpuparams.n_threads, imagePath.c_str());
@@ -113,19 +123,21 @@ void LlavaPhiMini::processImage(
     }
 
     // tokenize system prompt
-    {
-        TokenList tokens = tokenize(systemPrompt, true);
-        decode(tokens, params->n_batch, &numPast);
-    }
+    // {
+    //     TokenList tokens = tokenize(systemPrompt, true);
+    //     decode(tokens, params->n_batch, &numPast);
+    // }
 
+    decode(m_ctx->tokensSysPrompt, params->n_batch, &numPast);
     // embed image
     llava_eval_image_embed(m_ctx->llama.get(), imageEmbed, params->n_batch, &numPast);
 
     // tokenize user prompt
-    {
-        TokenList tokens = tokenize(userPrompt, false);
-        decode(tokens, params->n_batch, &numPast);
-    }
+    // {
+    //     TokenList tokens = tokenize(userPrompt, false);
+    //     decode(tokens, params->n_batch, &numPast);
+    // }
+    decode(m_ctx->tokensUserPrompt, params->n_batch, &numPast);
 
     m_ctx->sampler.reset(common_sampler_init(m_ctx->model.get(), params->sampling));
     if (!m_ctx->sampler) {

@@ -1,13 +1,19 @@
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/../bin)
+set(BINARY_NAME "ComputerEnhance")
 
-qt_add_executable(ComputerEnhance
+if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+    message(STATUS "Building debug version")
+    set(BINARY_NAME "ComputerEnhance_d")
+endif ()
+
+qt_add_executable(${BINARY_NAME}
         main.cpp
         qt_mainwindow.cpp
         llama_llava_phi.cpp
         tts_sherpa_onnx.cpp
 )
 
-qt_add_qml_module(ComputerEnhance
+qt_add_qml_module(${BINARY_NAME}
         URI MainModule
         VERSION 1.0
         SOURCES
@@ -16,7 +22,7 @@ qt_add_qml_module(ComputerEnhance
         Main.qml
 )
 
-target_link_libraries(ComputerEnhance
+target_link_libraries(${BINARY_NAME}
         PRIVATE ${LLAMA_LIBS}
         PRIVATE ${SHERPA_LIBS}
         PRIVATE Qt6::Core Qt6::Gui Qt6::Quick Qt6::Qml Qt6::Multimedia
