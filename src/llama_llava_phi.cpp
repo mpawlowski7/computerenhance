@@ -52,7 +52,7 @@ void LlavaPhiMini::initialize(
     m_ctx->params = std::make_unique<common_params>();
 
     m_ctx->params->n_gpu_layers = numGpuLayers;
-    m_ctx->params->cpuparams.n_threads = 4;
+    m_ctx->params->cpuparams.n_threads = 12;
 
     ggml_time_init();
 
@@ -100,11 +100,10 @@ void LlavaPhiMini::processImage(
 
     const std::string systemPrompt
         = "A chat between a curious human and an artificial intelligence assistant. "
-          "The assistant gives helpful, detailed, and polite answers to the human's "
+          "The assistant gives helpful and polite answers to the human's "
           "questions.\nUSER:";
-    const std::string userPrompt = "Who is at the door? Describe the look of the person, add what "
-                                   "is he wearing, add face details. "
-                                   "Use simple words.\nASSISTANT:";
+    const std::string userPrompt = "Describe the person at the door in 3 sentences. Add what "
+                                   "is he wearing and face details.'\nASSISTANT:";
 
     //load image
     ImageEmbed imageEmbed = llava_image_embed_make_with_filename(

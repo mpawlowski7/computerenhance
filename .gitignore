@@ -1,5 +1,6 @@
 out/bin/*
 out/debug/*
 out/tts/*
+out/release/*
 .idea/
 *.gguf

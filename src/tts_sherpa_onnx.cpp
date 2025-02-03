@@ -1,9 +1,23 @@
 #include "tts_sherpa_onnx.h"
 
+#include "sherpa-onnx/c-api/cxx-api.h"
+
 #include <QAudioSink>
 #include <QBuffer>
 
 namespace tts {
+
+using sherpa_onnx::cxx::OfflineTts;
+using sherpa_onnx::cxx::OfflineTtsConfig;
+
+struct TtsSherpaOnnx::TtsContext
+{
+    std::optional<OfflineTts> m_offlineTts;
+    ~TtsContext()
+    {
+        m_offlineTts.reset();
+    }
+};
 
 class AudioStream
 {
@@ -11,22 +25,50 @@ public:
     explicit AudioStream(QAudioFormat format)
     {
         m_audioSink = std::make_unique<QAudioSink>(format);
+        QObject::connect(m_audioSink.get(), &QAudioSink::stateChanged,
+            [&](QAudio::State state) {
+            switch (state) {
+            case QAudio::IdleState:
+                printf("Audio stream is idle\n");
+                break;
+            case QAudio::StoppedState:
+                printf("Audio stream is stopped\n");
+                if (m_audioSink != nullptr && m_audioSink->error() != QAudio::NoError) {
+                    printf("Error code =  %d\n", m_audioSink->error());
+                }
+                break;
+            default:
+                break;
+            }
+        });
     }
-    ~AudioStream() = default;
+    ~AudioStream() {}
 
-    void start() { m_device = m_audioSink->start(); }
+    void start()
+    {
+        m_device = m_audioSink->start();
+        if (m_device == nullptr) {
+            printf("Failed to start audio stream. Exit\n");
+            exit(1);
+        } else {
+            auto bufferSize = m_audioSink->bufferSize();
+            printf("Audio stream started. Buffer size = %d\n", bufferSize);
+        }
+    }
 
     void writeAudioData(const float *samples, int32_t sampleCount) const noexcept
     {
         QByteArray audioData = prepareAudioData(samples, sampleCount);
-        if (m_device != nullptr) {
+        if (m_device != nullptr && audioData.size() > 0) {
             m_device->write(audioData);
+            m_device->waitForBytesWritten(10);
+            printf("Audio stream finished.\n");
         }
     }
 
     void stop() noexcept
     {
-        if (m_device != nullptr) {
+        if (m_device != nullptr && m_audioSink != nullptr) {
             m_audioSink->stop();
             m_device = nullptr;
         }
@@ -52,44 +94,61 @@ private:
     QIODevice *m_device;
 };
 
+TtsSherpaOnnx::TtsSherpaOnnx() = default;
+TtsSherpaOnnx::~TtsSherpaOnnx()
+{
+
+}
+
 void TtsSherpaOnnx::initialize() noexcept
 {
-    OfflineTtsVitsModelConfig modelConfig;
-    modelConfig.model = "";
-    modelConfig.lexicon = "";
-    modelConfig.tokens = "";
-    modelConfig.data_dir = "";
-    modelConfig.dict_dir = "";
+    m_ctx = std::make_unique<TtsContext>();
 
     OfflineTtsConfig config;
+    config.model.vits.model = "../tts/vits-piper-en_US-amy-low/en_US-amy-low.onnx";
+    config.model.vits.tokens = "../tts/vits-piper-en_US-amy-low/tokens.txt";
+    config.model.vits.data_dir = "../tts/vits-piper-en_US-amy-low/espeak-ng-data";
+    config.model.num_threads = 8;
+    config.max_num_sentences = 1;
 
-    m_ttsContext = std::move(OfflineTts::Create(config));
+    m_ctx->m_offlineTts = OfflineTts::Create(config);
 }
 
 void TtsSherpaOnnx::synthesize(const std::string &text) const noexcept
 {
-    m_ttsContext.Generate(text, 0, 1, [](const float *samples, int32_t n, float progress, void *arg) {
-        static std::unique_ptr<AudioStream> _audioPlayer;
-        if (!_audioPlayer) {
-            QAudioFormat format;
-            format.setSampleRate(22050);
-            format.setChannelCount(1);
-            format.setSampleFormat(QAudioFormat::Int16);
+    printf("%s\n", text.c_str());
 
-            std::make_unique<AudioStream>(format);
+    if (!m_ctx->m_offlineTts.has_value()) {
+        printf("%s : sherpa offline tts not initialized.\n", __func__);
+        return;
+    }
 
-            _audioPlayer->start();
-        }
+    m_ctx->m_offlineTts.value()
+        .Generate(text, 0, 1, [](const float *samples, int32_t n, float progress, void *arg) {
+            Q_UNUSED(arg);
 
-        if (progress < 1.0f) {
+            printf("progress = %f\n", progress);
+            static std::unique_ptr<AudioStream> _audioPlayer;
+            if (!_audioPlayer) {
+                printf("creating audio stream\n");
+
+                QAudioFormat format;
+                format.setSampleRate(16000);
+                format.setChannelCount(1);
+                format.setSampleFormat(QAudioFormat::Int16);
+
+                _audioPlayer = std::make_unique<AudioStream>(format);
+                _audioPlayer->start();
+            }
+
             _audioPlayer->writeAudioData(samples, n);
+            if (progress >= 1.0f) {
+                _audioPlayer->stop();
+                return 0;
+            }
 
             return 1;
-        }
-
-        _audioPlayer->stop();
-        return 0;
-    });
+        });
 }
 
 } // namespace tts
