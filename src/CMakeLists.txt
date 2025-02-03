@@ -9,6 +9,7 @@ qt_add_executable(ComputerEnhance
 
 qt_add_qml_module(ComputerEnhance
         URI MainModule
+        VERSION 1.0
         SOURCES
         main.cpp
         QML_FILES
@@ -16,8 +17,8 @@ qt_add_qml_module(ComputerEnhance
 )
 
 target_link_libraries(ComputerEnhance
-        PRIVATE llava_static llama ggml ggml-base ggml-cpu ggml-cuda common
-        PRIVATE Qt6::Core Qt6::Gui Qt6::Quick
+        PRIVATE llava_static common ggml-base llama ggml  ggml-cpu ggml-cuda
+        PRIVATE Qt6::Core Qt6::Gui Qt6::Quick Qt6::Qml
         PRIVATE OpenMP::OpenMP_CXX
         PRIVATE CUDA::cudart_static CUDA::cublas_static CUDA::cublasLt_static
         PRIVATE CUDA::cuda_driver

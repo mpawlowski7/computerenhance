@@ -4,13 +4,13 @@
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 
-#define MODEL_PATH "../models/llava-phi-3-mini-int4.gguf"
+#define MODEL_PATH "../models/llava-phi-3-mini-f16.gguf"
 #define CLIP_PATH "../models/llava-phi-3-mini-mmproj-f16.gguf"
-#define NUM_GPU_LAYERS 20
+#define NUM_GPU_LAYERS 8
 
 void printResponse(const std::string& response)
 {
-    printf("%s", response.c_str());
+    printf("%s \n", response.c_str());
 }
 
 int main(int argc, char *argv[])
@@ -21,16 +21,17 @@ int main(int argc, char *argv[])
 
     std::unique_ptr<LlavaPhiMini> llava = std::make_unique<LlavaPhiMini>();
     llava->initialize(MODEL_PATH, CLIP_PATH, NUM_GPU_LAYERS);
-    llava->processImage("../img/img01.jpg", printResponse);
+    llava->processImage("../images/img02.jpg", printResponse);
 
-    QQmlApplicationEngine engine;
-    QObject::connect(
-        &engine, &QQmlApplicationEngine::objectCreationFailed, &app,
-        []() { QCoreApplication::exit(-1); }, Qt::QueuedConnection);
-
-    engine.loadFromModule("MainModule", "Main");
+    // QQmlApplicationEngine engine;
+    // QObject::connect(
+    //     &engine, &QQmlApplicationEngine::objectCreationFailed, &app,
+    //     []() { QCoreApplication::exit(-1); }, Qt::QueuedConnection);
+    //
+    // engine.loadFromModule("MainModule", "Main");
 
     printf("Starting app event loop");
 
-    return app.exec();
+    // return app.exec();
+    return 0;
 }

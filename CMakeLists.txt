@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.30)
+
 project(ComputerEnhance)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -10,6 +11,7 @@ find_package(Qt6 COMPONENTS
         Core
         Gui
         Quick
+        Qml
         REQUIRED)
 
 qt_standard_project_setup(REQUIRES 6.6.2)

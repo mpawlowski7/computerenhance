@@ -35,14 +35,26 @@ struct LlavaContext
 
 LlavaPhiMini::LlavaPhiMini() {}
 
-LlavaPhiMini::~LlavaPhiMini() {}
+LlavaPhiMini::~LlavaPhiMini()
+{
+    llama_backend_free();
+}
 
 
 void LlavaPhiMini::initialize(const std::string& modelPath, const std::string& clipPath, int numGpuLayers)
 {
-    m_ctx = std::make_unique<LlavaContext>();
+    m_ctx         = std::make_unique<LlavaContext>();
+    m_ctx->params = std::make_shared<common_params>();
+
+    m_ctx->params->n_gpu_layers = numGpuLayers;
+    m_ctx->params->cpuparams.n_threads = 4;
+
+    ggml_time_init();
 
     common_init();
+
+    llama_backend_init();
+    llama_numa_init(m_ctx->params->numa);
 
     initLlamaModel(modelPath, numGpuLayers);
     if (m_ctx->model == nullptr) {
@@ -50,11 +62,9 @@ void LlavaPhiMini::initialize(const std::string& modelPath, const std::string& c
         return;
     }
 
-    m_ctx->params = std::make_shared<common_params>();
     llama_context_params llamaParams = common_context_params_to_llama(*m_ctx->params);
     llamaParams.n_ctx = m_ctx->params->n_ctx < 2048 ? 2048 : m_ctx->params->n_ctx;
-
-    m_ctx->llama.reset(llama_new_context_with_model(m_ctx->model.get(), llamaParams));
+    m_ctx->llama.reset(llama_init_from_model(m_ctx->model.get(), llamaParams));
     if (m_ctx->llama == nullptr) {
         printf("%s: failed to create the m_ctx->llama\n", __func__);
         return;
@@ -65,12 +75,10 @@ void LlavaPhiMini::initialize(const std::string& modelPath, const std::string& c
 
 void LlavaPhiMini::initLlamaModel(const std::string& modelPath, int numGpuLayers)
 {
-    llama_backend_init();
+    llama_model_params modelParams = common_model_params_to_llama(*m_ctx->params);
+    modelParams.n_gpu_layers = numGpuLayers;
 
-    llama_model_params model_params = llama_model_default_params();
-    model_params.n_gpu_layers = numGpuLayers;
-
-    m_ctx->model.reset(llama_load_model_from_file(modelPath.c_str(), model_params));
+    m_ctx->model.reset(llama_model_load_from_file(modelPath.c_str(), modelParams));
     if (m_ctx->model.get() == nullptr) {
         printf("%s: unable to load model\n", __func__);
     }
@@ -121,6 +129,8 @@ void LlavaPhiMini::processImage(const std::string &imagePath, const std::functio
         return;
     }
 
+    generateResponse(&numPast, params->n_batch, responseCallback);
+
     llava_image_embed_free(imageEmbed);
 }
 
@@ -144,36 +154,39 @@ bool LlavaPhiMini::decode(TokenList& tokens, int n_batch, int* numPast) const
 
 TokenList LlavaPhiMini::tokenize(const std::string& prompt, bool addBeginningOfSequence)
 {
-    int numTokens = prompt.length() + 2 * addBeginningOfSequence;
-    TokenList result(numTokens);
-    numTokens = llama_tokenize(m_ctx->model.get(), prompt.data(), prompt.length(),
-                          result.data(), result.size(), addBeginningOfSequence, true);
-    if (numTokens < 0) {
-        result.resize(-numTokens);
-        int check = llama_tokenize(m_ctx->model.get(), prompt.data(), prompt.length(),
-                                 result.data(), result.size(), addBeginningOfSequence, true);
-        GGML_ASSERT(check == -numTokens);
-    } else {
-        result.resize(numTokens);
-    }
+    TokenList result = common_tokenize(m_ctx->llama.get(), prompt, addBeginningOfSequence, true);
     return result;
 }
 
 void LlavaPhiMini::generateResponse(int* numPast, int numPredict, ResponseCallback callback)
 {
-    std::string result {"\n"};
+    llama_context* llamaCtx = m_ctx->llama.get();
+    common_sampler* sampler = m_ctx->sampler.get();
+
+    std::string response = "";
     const int maxPredict = numPredict < 0 ? 256 : numPredict;
 
     for (int i = 0; i < maxPredict; i++) {
-        const llama_token id = common_sampler_sample(m_ctx->sampler.get(), m_ctx->llama.get(), -1);
-        common_sampler_accept(m_ctx->sampler.get(), id, true);
-        if (llama_token_is_eog(m_ctx->model.get(), id)) {
-            result = "</s>";
+        const llama_token id = common_sampler_sample(sampler, llamaCtx, -1);
+        common_sampler_accept(sampler, id, true);
+
+        const llama_vocab * vocab = llama_model_get_vocab(m_ctx->model.get());
+
+        static std::string ret;
+        if (llama_vocab_is_eog(vocab, id)) {
+            ret = "</s>";
         } else {
-            result = common_token_to_piece(m_ctx->llama.get(), id);
+            ret = common_token_to_piece(llamaCtx, id);
         }
         TokenList tokens = { id };
         decode(tokens,1, numPast);
-        callback (result);
+
+        if (strcmp(ret.c_str(), "</s>") == 0) break;
+        if (strstr(ret.c_str(), "###")) break;
+        response += ret;
+        if (strstr(response.c_str(), "<|im_end|>")) break; // Yi-34B llava-1.6 - for some reason those decode not as the correct token (tokenizer works)
+        if (strstr(response.c_str(), "<|im_start|>")) break; // Yi-34B llava-1.6
+        if (strstr(response.c_str(), "USER:")) break; /// Yi-VL behavior
     }
+    callback (response);
 }
