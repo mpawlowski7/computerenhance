@@ -1,34 +1,39 @@
 #include "llama_llava_phi.h"
 
-#include "llama-cpp.h"
-#include "llava.h"
 #include "clip.h"
 #include "common.h"
+#include "llama-cpp.h"
+#include "llava.h"
 #include "sampling.h"
 
 #include <fmt/format.h>
 
-struct LlavaClipDeleter {
-    void operator()(clip_ctx* clip) { clip_free(clip); }
-};
+namespace ml {
 
-struct CommonSamplerDelete {
-    void operator()(common_sampler* sampler) { common_sampler_free(sampler); }
-};
-
-using LLamaContextPtr = llama_context_ptr;
-using LLamaModelPtr = llama_model_ptr;
-using LlamaClipPtr = std::unique_ptr<clip_ctx, LlavaClipDeleter>;
-using CommonSamplerPtr = std::unique_ptr<common_sampler, CommonSamplerDelete>;
-using CommonParamsPtr = std::shared_ptr<common_params>;
-
-struct LlavaContext
+struct LlavaClipDeleter
 {
-    LLamaContextPtr  llama;
-    LLamaModelPtr    model;
-    LlamaClipPtr     clip;
-    CommonParamsPtr  params;
-    CommonSamplerPtr sampler;
+    void operator()(clip_ctx *clip) { clip_free(clip); }
+};
+
+struct CommonSamplerDelete
+{
+    void operator()(common_sampler *sampler) { common_sampler_free(sampler); }
+};
+
+using LLamaContext = llama_context_ptr;
+using LLamaModel = llama_model_ptr;
+using LlamaClip = std::unique_ptr<clip_ctx, LlavaClipDeleter>;
+using CommonSampler = std::unique_ptr<common_sampler, CommonSamplerDelete>;
+using CommonParams = std::unique_ptr<common_params>;
+using ImageEmbed = llava_image_embed *;
+
+struct LlavaPhiMini::LlavaContext
+{
+    LLamaContext llama;
+    LLamaModel model;
+    LlamaClip clip;
+    CommonParams params;
+    CommonSampler sampler;
     // TokenList tokensSysPrompt;
     // TokenList tokensUserPrompt;
 };
@@ -40,11 +45,11 @@ LlavaPhiMini::~LlavaPhiMini()
     llama_backend_free();
 }
 
-
-void LlavaPhiMini::initialize(const std::string& modelPath, const std::string& clipPath, int numGpuLayers)
+void LlavaPhiMini::initialize(
+    const std::string &modelPath, const std::string &clipPath, int numGpuLayers) noexcept
 {
-    m_ctx         = std::make_unique<LlavaContext>();
-    m_ctx->params = std::make_shared<common_params>();
+    m_ctx = std::make_unique<LlavaContext>();
+    m_ctx->params = std::make_unique<common_params>();
 
     m_ctx->params->n_gpu_layers = numGpuLayers;
     m_ctx->params->cpuparams.n_threads = 4;
@@ -70,10 +75,10 @@ void LlavaPhiMini::initialize(const std::string& modelPath, const std::string& c
         return;
     }
 
-    m_ctx->clip.reset(clip_model_load(clipPath.c_str(), /*verbosity=*/ 0));
+    m_ctx->clip.reset(clip_model_load(clipPath.c_str(), /*verbosity=*/0));
 }
 
-void LlavaPhiMini::initLlamaModel(const std::string& modelPath, int numGpuLayers)
+void LlavaPhiMini::initLlamaModel(const std::string &modelPath, int numGpuLayers) noexcept
 {
     llama_model_params modelParams = common_model_params_to_llama(*m_ctx->params);
     modelParams.n_gpu_layers = numGpuLayers;
@@ -84,28 +89,28 @@ void LlavaPhiMini::initLlamaModel(const std::string& modelPath, int numGpuLayers
     }
 }
 
-
-void LlavaPhiMini::processImage(const std::string &imagePath, const std::function<void(const std::string &response)>&
-                                responseCallback)
+void LlavaPhiMini::processImage(
+    const std::string &imagePath,
+    const std::function<void(const std::string &response)> &responseCallback) const noexcept
 {
-    int numPast             = 0;
-    CommonParamsPtr& params = m_ctx->params;
+    int numPast = 0;
+    CommonParams &params = m_ctx->params;
 
     std::string response;
 
-    const std::string systemPrompt =
-        "A chat between a curious human and an artificial intelligence assistant. "
-        "The assistant gives helpful, detailed, and polite answers to the human's questions.\nUSER:";
-    const std::string userPrompt =
-        "Who is at the door? Describe the look of the person, add what is he wearing, add face details. "
-        "Use simple words.\nASSISTANT:";
+    const std::string systemPrompt
+        = "A chat between a curious human and an artificial intelligence assistant. "
+          "The assistant gives helpful, detailed, and polite answers to the human's "
+          "questions.\nUSER:";
+    const std::string userPrompt = "Who is at the door? Describe the look of the person, add what "
+                                   "is he wearing, add face details. "
+                                   "Use simple words.\nASSISTANT:";
 
     //load image
-    ImageEmbed imageEmbed = llava_image_embed_make_with_filename(m_ctx->clip.get(),
-                                                                 params->cpuparams.n_threads,
-                                                                 imagePath.c_str());
+    ImageEmbed imageEmbed = llava_image_embed_make_with_filename(
+        m_ctx->clip.get(), params->cpuparams.n_threads, imagePath.c_str());
     if (!imageEmbed) {
-        printf("%s: failed to embed image = %s\n",__func__, imagePath.c_str());
+        printf("%s: failed to embed image = %s\n", __func__, imagePath.c_str());
     }
 
     // tokenize system prompt
@@ -134,7 +139,7 @@ void LlavaPhiMini::processImage(const std::string &imagePath, const std::functio
     llava_image_embed_free(imageEmbed);
 }
 
-bool LlavaPhiMini::decode(TokenList& tokens, int n_batch, int* numPast) const
+bool LlavaPhiMini::decode(TokenList &tokens, int n_batch, int *numPast) const noexcept
 {
     int N = (int) tokens.size();
     for (int i = 0; i < N; i += n_batch) {
@@ -143,8 +148,13 @@ bool LlavaPhiMini::decode(TokenList& tokens, int n_batch, int* numPast) const
             n_eval = n_batch;
         }
         if (llama_decode(m_ctx->llama.get(), llama_batch_get_one(&tokens[i], n_eval))) {
-           printf("%s: failed to eval. token %d/%d batch size = %d, n_past = %d",
-                  __func__, i ,N, n_batch, *numPast);
+            printf(
+                "%s: failed to eval. token %d/%d batch size = %d, n_past = %d",
+                __func__,
+                i,
+                N,
+                n_batch,
+                *numPast);
             return false;
         }
         *numPast += n_eval;
@@ -152,25 +162,25 @@ bool LlavaPhiMini::decode(TokenList& tokens, int n_batch, int* numPast) const
     return true;
 }
 
-TokenList LlavaPhiMini::tokenize(const std::string& prompt, bool addBeginningOfSequence)
+TokenList LlavaPhiMini::tokenize(const std::string &prompt, bool addBeginningOfSequence) const noexcept
 {
     TokenList result = common_tokenize(m_ctx->llama.get(), prompt, addBeginningOfSequence, true);
     return result;
 }
 
-void LlavaPhiMini::generateResponse(int* numPast, int numPredict, ResponseCallback callback)
+void LlavaPhiMini::generateResponse(int *numPast, int numPredict, const ResponseCallback &callback) const noexcept
 {
-    llama_context* llamaCtx = m_ctx->llama.get();
-    common_sampler* sampler = m_ctx->sampler.get();
+    llama_context *llamaCtx = m_ctx->llama.get();
+    common_sampler *sampler = m_ctx->sampler.get();
 
-    std::string response = "";
+    std::string response;
     const int maxPredict = numPredict < 0 ? 256 : numPredict;
 
     for (int i = 0; i < maxPredict; i++) {
         const llama_token id = common_sampler_sample(sampler, llamaCtx, -1);
         common_sampler_accept(sampler, id, true);
 
-        const llama_vocab * vocab = llama_model_get_vocab(m_ctx->model.get());
+        const llama_vocab *vocab = llama_model_get_vocab(m_ctx->model.get());
 
         static std::string ret;
         if (llama_vocab_is_eog(vocab, id)) {
@@ -178,15 +188,22 @@ void LlavaPhiMini::generateResponse(int* numPast, int numPredict, ResponseCallba
         } else {
             ret = common_token_to_piece(llamaCtx, id);
         }
-        TokenList tokens = { id };
-        decode(tokens,1, numPast);
+        TokenList tokens = {id};
+        decode(tokens, 1, numPast);
 
-        if (strcmp(ret.c_str(), "</s>") == 0) break;
-        if (strstr(ret.c_str(), "###")) break;
+        if (strcmp(ret.c_str(), "</s>") == 0)
+            break;
+        if (strstr(ret.c_str(), "###"))
+            break;
         response += ret;
-        if (strstr(response.c_str(), "<|im_end|>")) break; // Yi-34B llava-1.6 - for some reason those decode not as the correct token (tokenizer works)
-        if (strstr(response.c_str(), "<|im_start|>")) break; // Yi-34B llava-1.6
-        if (strstr(response.c_str(), "USER:")) break; /// Yi-VL behavior
+        if (strstr(response.c_str(), "<|im_end|>"))
+            break;
+        if (strstr(response.c_str(), "<|im_start|>"))
+            break;
+        if (strstr(response.c_str(), "USER:"))
+            break;
     }
-    callback (response);
+    callback(response);
 }
+
+} // namespace ml

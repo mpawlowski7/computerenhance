@@ -1,62 +1,12 @@
+# Correct order is important
+set(LLAMA_LIBS llava_static common ggml-base llama ggml ggml-cpu ggml-cuda)
 
-# ggml
-#
-set(LIBNAME ggml)
-add_library(${LIBNAME} STATIC IMPORTED GLOBAL)
-set_target_properties(${LIBNAME} PROPERTIES
-        IMPORTED_LOCATION "${CMAKE_CURRENT_SOURCE_DIR}/lib/lib${LIBNAME}.a"
-        INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include"
-)
+foreach (LIBNAME IN LISTS LLAMA_LIBS)
+    add_library("${LIBNAME}" STATIC IMPORTED GLOBAL)
+    set_target_properties("${LIBNAME}" PROPERTIES
+            IMPORTED_LOCATION "${CMAKE_CURRENT_SOURCE_DIR}/lib/lib${LIBNAME}.a"
+            INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include"
+    )
+endforeach ()
 
-
-set(LIBNAME ggml-base)
-add_library(${LIBNAME} STATIC IMPORTED GLOBAL)
-set_target_properties(${LIBNAME} PROPERTIES
-        IMPORTED_LOCATION "${CMAKE_CURRENT_SOURCE_DIR}/lib/lib${LIBNAME}.a"
-        INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include"
-)
-
-set(LIBNAME ggml-cpu)
-add_library(${LIBNAME} STATIC IMPORTED GLOBAL)
-set_target_properties(${LIBNAME} PROPERTIES
-        IMPORTED_LOCATION "${CMAKE_CURRENT_SOURCE_DIR}/lib/lib${LIBNAME}.a"
-        INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include"
-)
-
-set(LIBNAME ggml-cuda)
-add_library(${LIBNAME} STATIC IMPORTED GLOBAL)
-set_target_properties(${LIBNAME} PROPERTIES
-        IMPORTED_LOCATION "${CMAKE_CURRENT_SOURCE_DIR}/lib/lib${LIBNAME}.a"
-        INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include"
-)
-
-
-# llama
-#
-set(LIBNAME llama)
-add_library(${LIBNAME} STATIC IMPORTED GLOBAL)
-set_target_properties(${LIBNAME}
-        PROPERTIES
-        IMPORTED_LOCATION "${CMAKE_CURRENT_SOURCE_DIR}/lib/lib${LIBNAME}.a"
-        INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include"
-)
-
-# llava
-#
-set(LIBNAME llava_static)
-add_library(${LIBNAME} STATIC IMPORTED GLOBAL)
-set_target_properties(${LIBNAME}
-    PROPERTIES
-        IMPORTED_LOCATION "${CMAKE_CURRENT_SOURCE_DIR}/lib/lib${LIBNAME}.a"
-        INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include"
-)
-
-# common
-#
-set(LIBNAME common)
-add_library(${LIBNAME} STATIC IMPORTED GLOBAL)
-set_target_properties(${LIBNAME}
-        PROPERTIES
-        IMPORTED_LOCATION "${CMAKE_CURRENT_SOURCE_DIR}/lib/lib${LIBNAME}.a"
-        INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include"
-)
+set(LLAMA_LIBS ${LLAMA_LIBS} PARENT_SCOPE)
