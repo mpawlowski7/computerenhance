@@ -122,21 +122,9 @@ void LlavaPhiMini::processImage(
         printf("%s: failed to embed image = %s\n", __func__, imagePath.c_str());
     }
 
-    // tokenize system prompt
-    // {
-    //     TokenList tokens = tokenize(systemPrompt, true);
-    //     decode(tokens, params->n_batch, &numPast);
-    // }
-
     decode(m_ctx->tokensSysPrompt, params->n_batch, &numPast);
     // embed image
     llava_eval_image_embed(m_ctx->llama.get(), imageEmbed, params->n_batch, &numPast);
-
-    // tokenize user prompt
-    // {
-    //     TokenList tokens = tokenize(userPrompt, false);
-    //     decode(tokens, params->n_batch, &numPast);
-    // }
     decode(m_ctx->tokensUserPrompt, params->n_batch, &numPast);
 
     m_ctx->sampler.reset(common_sampler_init(m_ctx->model.get(), params->sampling));

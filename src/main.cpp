@@ -13,7 +13,8 @@ static std::unique_ptr<tts::TtsSherpaOnnx> g_ttsEngine;
 
 void printResponse(const std::string& response)
 {
-    g_ttsEngine->synthesize(response);
+    if (g_ttsEngine)
+        g_ttsEngine->synthesize(response);
 }
 
 int main(int argc, char *argv[])
@@ -22,15 +23,15 @@ int main(int argc, char *argv[])
     app.setOrganizationName("Michal Pawlowski");
     app.setApplicationName(QObject::tr("DoorbellCamera"));
 
-    g_ttsEngine = std::make_unique<tts::TtsSherpaOnnx>();
-    g_ttsEngine->initialize();
-
-    std::unique_ptr<ml::LlavaPhiMini> llava = std::make_unique<ml::LlavaPhiMini>();
-    llava->initialize(MODEL_PATH, CLIP_PATH, NUM_GPU_LAYERS);
-    llava->processImage("../images/img03.jpg", printResponse);
-
-    printf("Processing img01");
-    llava->processImage("../images/img01.jpg", printResponse);
+    // g_ttsEngine = std::make_unique<tts::TtsSherpaOnnx>();
+    // g_ttsEngine->initialize();
+    //
+    // std::unique_ptr<ml::LlavaPhiMini> llava = std::make_unique<ml::LlavaPhiMini>();
+    // llava->initialize(MODEL_PATH, CLIP_PATH, NUM_GPU_LAYERS);
+    // llava->processImage("../images/img03.jpg", printResponse);
+    //
+    // printf("Processing img01");
+    // llava->processImage("../images/img01.jpg", printResponse);
 
     QQmlApplicationEngine engine;
     QObject::connect(

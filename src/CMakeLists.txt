@@ -6,6 +6,10 @@ if (CMAKE_BUILD_TYPE STREQUAL "Debug")
     set(BINARY_NAME "ComputerEnhance_d")
 endif ()
 
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTORCC ON)
+set(CMAKE_AUTOUIC ON)
+
 qt_add_executable(${BINARY_NAME}
         main.cpp
         qt_mainwindow.cpp
@@ -31,3 +35,11 @@ target_link_libraries(${BINARY_NAME}
         PRIVATE CUDA::cuda_driver
         PRIVATE fmt
 )
+
+
+#qt_add_resources(${BINARY_NAME} "controls_conf"
+#        PREFIX
+#        "/"
+#        FILES
+#        "qtquickcontrols2.conf"
+#)
