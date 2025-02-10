@@ -147,9 +147,7 @@ bool LlavaPhiMini::decode(TokenList &tokens, int n_batch, int *numPast) const no
             n_eval = n_batch;
         }
         if (llama_decode(m_ctx->llama.get(), llama_batch_get_one(&tokens[i], n_eval))) {
-            printf(
-                "%s: failed to eval. token %d/%d batch size = %d, n_past = %d",
-                __func__,
+            printf("%s: failed to eval. token %d/%d batch size = %d, n_past = %d", __func__,
                 i,
                 N,
                 n_batch,

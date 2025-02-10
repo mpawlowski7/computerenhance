@@ -1,9 +1,9 @@
 #include <llama_llava_phi.h>
 #include <tts_sherpa_onnx.h>
+#include <qt_mainwindow.h>
 #include <fmt/format.h>
 
 #include <QGuiApplication>
-#include <QQmlApplicationEngine>
 
 #define MODEL_PATH      "../models/llava-phi-3-mini-int4.gguf"
 #define CLIP_PATH       "../models/llava-phi-3-mini-mmproj-f16.gguf"
@@ -19,28 +19,23 @@ void printResponse(const std::string& response)
 
 int main(int argc, char *argv[])
 {
-    QGuiApplication app(argc, argv);
-    app.setOrganizationName("Michal Pawlowski");
-    app.setApplicationName(QObject::tr("DoorbellCamera"));
-
     // g_ttsEngine = std::make_unique<tts::TtsSherpaOnnx>();
     // g_ttsEngine->initialize();
-    //
+
     // std::unique_ptr<ml::LlavaPhiMini> llava = std::make_unique<ml::LlavaPhiMini>();
     // llava->initialize(MODEL_PATH, CLIP_PATH, NUM_GPU_LAYERS);
     // llava->processImage("../images/img03.jpg", printResponse);
-    //
+
     // printf("Processing img01");
     // llava->processImage("../images/img01.jpg", printResponse);
+    AppContext ctx;
+    ctx.author = "Michal Pawlowski";
 
-    QQmlApplicationEngine engine;
-    QObject::connect(
-        &engine, &QQmlApplicationEngine::objectCreationFailed, &app,
-        []() { QCoreApplication::exit(-1); }, Qt::QueuedConnection);
 
-    engine.loadFromModule("MainModule", "Main");
+    ui::QtMainWindow appWindow;
+    appWindow.initialize(ctx);
 
-    printf("Starting app event loop");
+    // printf("Starting app event loop");
 
-    return app.exec();
+    return appWindow.show();
 }

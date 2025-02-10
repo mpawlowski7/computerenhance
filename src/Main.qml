@@ -18,6 +18,9 @@ ApplicationWindow {
 
     Material.theme: Material.Light
 
+    property string prompt
+    property string response
+
     Column {
         anchors.fill: parent
         spacing: 30
@@ -64,7 +67,7 @@ ApplicationWindow {
 
             Item {
                 width: parent.width
-                height: parent.height / 2
+                height: parent.height * 0.5
 
                 Label {
                     text: "Describe the person at the door in three sentences. What is wearing, add face details."
@@ -84,7 +87,7 @@ ApplicationWindow {
 
             Item {
                 width: parent.width
-                height: parent.height / 2
+                height: parent.height * 0.5
 
                 Label {
                     id: agent_resp
