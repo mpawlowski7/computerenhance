@@ -1,26 +1,53 @@
 #include <qt_mainwindow.h>
+#include <qt_imageworker.h>
+
+#include <QDebug>
+#include <QThread>
+
+static std::string g_userPrompt = "Describe the person in two sentences. Start your respond with 'The person at the door'. Focus on the gender. Focus on what is he wearing. Add face details";
 
 namespace ui {
 
-void QtMainWindow::initialize(const AppContext& appCtx)
+QtMainWindow::QtMainWindow() {}
+QtMainWindow::~QtMainWindow()
 {
-    m_app.setOrganizationName(appCtx.author.c_str());
-    m_app.setApplicationName(appCtx.name.c_str());
+    if (!m_workerThread.isFinished())
+        m_workerThread.quit();
+}
 
-    connect(&m_engine, &QQmlApplicationEngine::objectCreationFailed, &m_app,
-        []() { QCoreApplication::exit(-1); }, Qt::QueuedConnection);
+QtMainWindow::QtMainWindow(QQmlApplicationEngine* engine)
+    : m_engine(engine), m_prompt(""), m_response(""), m_processing(false)
+{}
 
-    m_engine.setInitialProperties({
-            {"prompt", QVariant::fromValue(&m_prompt)},
-        {"response", QVariant::fromValue(&m_response)}
+void QtMainWindow::initialize()
+{
+    setPrompt(g_userPrompt.c_str());
+
+    m_engine->setInitialProperties({{"ctx", QVariant::fromValue(this)}});
+    m_engine->loadFromModule("MainWindow", "MainWindow");
+
+    m_worker = std::make_unique<ImageWorker>(m_prompt);
+    connect(this, &QtMainWindow::startProcessing, m_worker.get(), &ImageWorker::analyze);
+    connect(m_worker.get(), &ImageWorker::responseReady, this, &QtMainWindow::setResponse, Qt::DirectConnection);
+    connect(m_worker.get(), &ImageWorker::doneProcessing, [this]() {
+        m_processing = false;
     });
-    m_engine.loadFromModule("MainModule", "Main");
+
+    m_worker->moveToThread(&m_workerThread);
+
+    connect(&m_workerThread, &QThread::started, m_worker.get(), &ImageWorker::initialize);
+    m_workerThread.start();
 }
 
-int QtMainWindow::show()
+void QtMainWindow::loadImage(const QString& imagePath)
 {
-    return m_app.exec();
+    qDebug() << QThread::currentThreadId << __func__ ;
+
+    m_response.clear();
+    emit responseChanged();
+
+    m_processing = true;
+    emit startProcessing(imagePath);
 }
 
 }
-

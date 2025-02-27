@@ -1,9 +1,12 @@
 #include "tts_sherpa_onnx.h"
+#include <fmt/printf.h>
 
 #include "sherpa-onnx/c-api/cxx-api.h"
 
 #include <QAudioSink>
 #include <QBuffer>
+
+#define printf fmt::print
 
 namespace tts {
 

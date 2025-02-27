@@ -17,7 +17,8 @@ public:
     LlavaPhiMini();
     ~LlavaPhiMini();
 
-    void initialize(const std::string& modelPath, const std::string& clipPath, int numGpuLayers) noexcept;
+    void initialize(const std::string modelPath, const std::string clipPath,
+                    int numGpuLayers, const std::string& userPrompt) noexcept;
     void processImage(const std::string& imagePath, const ResponseCallback& callback) const noexcept;
 
 private:

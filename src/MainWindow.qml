@@ -1,4 +1,4 @@
-import QtQuick
+import QtQuick 2.0
 import QtQuick.Controls.Basic
 import QtQuick.Controls.Material
 import QtQuick.Layouts
@@ -18,8 +18,10 @@ ApplicationWindow {
 
     Material.theme: Material.Light
 
-    property string prompt
-    property string response
+    required property QtMainWindow ctx
+
+    property int img_id: 1
+    property int img_max_id: 2
 
     Column {
         anchors.fill: parent
@@ -35,12 +37,16 @@ ApplicationWindow {
             Material.background: Material.color(Material.Grey, Material.Shade200)
             Material.roundedScale: Material.SmallScale
 
+            padding: 8
+
             Image {
-                source: "file:////home/mcpw/Projects/ComputerEnhance/out/images/dummy.png"
+                id: data_img
+                source: "images/dummy.png"
                 width: 960
                 height: 540
-                fillMode: Image.PreserveAspectFit
-                antialiasing: true
+                fillMode: Image.PreserveAspectCrop
+                antialiasing: false
+                anchors.fill: parent
 
                 Button {
                     text: "Load image"
@@ -48,6 +54,22 @@ ApplicationWindow {
                     font.pixelSize: 18
                     Material.roundedScale: Material.SmallScale
                     height: 60
+
+                    onClicked: {
+                        if (!ctx.processing) {
+
+                            var image_path = "images/img0" + img_id + ".jpg"
+                            console.log(image_path)
+                            data_img.source = image_path
+                            ctx.loadImage(String("../../" + image_path))
+                            img_id++
+                            if (img_id > img_max_id) {
+                                img_id = 1
+                            }
+                        } else {
+                            console.log("Processing image")
+                        }
+                    }
                 }
             }
         }
@@ -70,7 +92,7 @@ ApplicationWindow {
                 height: parent.height * 0.5
 
                 Label {
-                    text: "Describe the person at the door in three sentences. What is wearing, add face details."
+                    text: root.ctx.prompt
                     font.pixelSize: 18
 
                     anchors.fill: parent
@@ -91,7 +113,7 @@ ApplicationWindow {
 
                 Label {
                     id: agent_resp
-                    text: "Describe the person at the door in three sentences. What is wearing, add face details. Describe the person at the door in three sentences. What is wearing, add face details."
+                    text: root.ctx.response
                     font.pixelSize: 18
 
                     anchors.fill: parent

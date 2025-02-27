@@ -15,7 +15,7 @@ find_package(Qt6 COMPONENTS
 qt_standard_project_setup(REQUIRES 6.6.2)
 
 find_package(OpenMP REQUIRED)
-find_package(CUDAToolkit REQUIRED)
+#find_package(CUDAToolkit REQUIRED)
 find_package(fmt REQUIRED)
 
 add_subdirectory(prebuilts/llama-cpp)

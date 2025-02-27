@@ -1,9 +1,9 @@
-if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-    set(DEBUG_PATH "debug/")
-endif ()
+#if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+#    set(DEBUG_PATH "debug/")
+#endif ()
 
 # Correct order is important
-set(LLAMA_LIBS llava_static common ggml-base llama ggml ggml-cpu ggml-cuda)
+set(LLAMA_LIBS llava_static common llama ggml-base ggml ggml-cpu)
 
 foreach (LIBNAME IN LISTS LLAMA_LIBS)
     add_library("${LIBNAME}" STATIC IMPORTED GLOBAL)

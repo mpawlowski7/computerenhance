@@ -11,35 +11,30 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
 qt_add_executable(${BINARY_NAME}
-        main.cpp
-        qt_mainwindow.cpp
         llama_llava_phi.cpp
         tts_sherpa_onnx.cpp
+        qt_imageworker.cpp
+        qt_mainwindow.cpp
+        main.cpp
 )
 
 qt_add_qml_module(${BINARY_NAME}
-        URI MainModule
+        URI MainWindow
         VERSION 1.0
-        SOURCES
-        main.cpp
         QML_FILES
-        Main.qml
+        MainWindow.qml
+        RESOURCES
+        ../images/dummy.png
+        ../images/img01.jpg
+        ../images/img02.jpg
 )
 
 target_link_libraries(${BINARY_NAME}
-        PRIVATE ${LLAMA_LIBS}
-        PRIVATE ${SHERPA_LIBS}
         PRIVATE Qt6::Core Qt6::Gui Qt6::Quick Qt6::Qml Qt6::Multimedia
         PRIVATE OpenMP::OpenMP_CXX
-        PRIVATE CUDA::cudart_static CUDA::cublas_static CUDA::cublasLt_static
-        PRIVATE CUDA::cuda_driver
         PRIVATE fmt
+        PRIVATE ${LLAMA_LIBS}
+        PRIVATE ${SHERPA_LIBS}
+#        PRIVATE CUDA::cudart_static CUDA::cublas_static CUDA::cublasLt_static
+#        PRIVATE CUDA::cuda_driver
 )
-
-
-#qt_add_resources(${BINARY_NAME} "controls_conf"
-#        PREFIX
-#        "/"
-#        FILES
-#        "qtquickcontrols2.conf"
-#)

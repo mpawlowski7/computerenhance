@@ -8,6 +8,8 @@
 
 #include <fmt/format.h>
 
+#include <iostream>
+
 namespace ml {
 
 struct LlavaClipDeleter
@@ -46,13 +48,14 @@ LlavaPhiMini::~LlavaPhiMini()
 }
 
 void LlavaPhiMini::initialize(
-    const std::string &modelPath, const std::string &clipPath, int numGpuLayers) noexcept
+    const std::string modelPath, const std::string clipPath, int numGpuLayers,
+    const std::string& userPrompt) noexcept
 {
     m_ctx = std::make_unique<LlavaContext>();
     m_ctx->params = std::make_unique<common_params>();
 
     m_ctx->params->n_gpu_layers = numGpuLayers;
-    m_ctx->params->cpuparams.n_threads = 12;
+    m_ctx->params->cpuparams.n_threads = 99;
 
     ggml_time_init();
 
@@ -82,23 +85,27 @@ void LlavaPhiMini::initialize(
         return;
     }
 
-
     const std::string systemPrompt
     = "A chat between a curious human and an artificial intelligence assistant. "
       "The assistant gives helpful and polite answers to the human's "
       "questions.\nUSER:";
-    const std::string userPrompt = "Describe the person at the door in 3 sentences. Add what "
-                                   "is he wearing and face details.'\nASSISTANT:";
 
     // Cache the prompt tokens
     m_ctx->tokensSysPrompt = tokenize(systemPrompt, true);
     m_ctx->tokensUserPrompt = tokenize(userPrompt, false);
+
+    m_ctx->params->sampling.temp = 0.80f;
+    m_ctx->sampler.reset(common_sampler_init(m_ctx->model.get(),  m_ctx->params->sampling));
+    if (!m_ctx->sampler) {
+        printf("%s: failed to initialize sampling subsystem\n", __func__);
+        return;
+    }
 }
 
-void LlavaPhiMini::initLlamaModel(const std::string &modelPath, int numGpuLayers) noexcept
+void LlavaPhiMini::initLlamaModel(const std::string& modelPath, int /* numGpuLayers */) noexcept
 {
     llama_model_params modelParams = common_model_params_to_llama(*m_ctx->params);
-    modelParams.n_gpu_layers = numGpuLayers;
+    m_ctx->params->kv_overrides.clear();
 
     m_ctx->model.reset(llama_model_load_from_file(modelPath.c_str(), modelParams));
     if (m_ctx->model.get() == nullptr) {
@@ -108,7 +115,7 @@ void LlavaPhiMini::initLlamaModel(const std::string &modelPath, int numGpuLayers
 
 void LlavaPhiMini::processImage(
     const std::string &imagePath,
-    const std::function<void(const std::string &response)> &responseCallback) const noexcept
+    const std::function<void(const std::string& response)> &responseCallback) const noexcept
 {
     int numPast = 0;
     CommonParams &params = m_ctx->params;
@@ -126,12 +133,6 @@ void LlavaPhiMini::processImage(
     // embed image
     llava_eval_image_embed(m_ctx->llama.get(), imageEmbed, params->n_batch, &numPast);
     decode(m_ctx->tokensUserPrompt, params->n_batch, &numPast);
-
-    m_ctx->sampler.reset(common_sampler_init(m_ctx->model.get(), params->sampling));
-    if (!m_ctx->sampler) {
-        printf("%s: failed to initialize sampling subsystem\n", __func__);
-        return;
-    }
 
     generateResponse(&numPast, params->n_batch, responseCallback);
 
@@ -159,7 +160,7 @@ bool LlavaPhiMini::decode(TokenList &tokens, int n_batch, int *numPast) const no
     return true;
 }
 
-TokenList LlavaPhiMini::tokenize(const std::string &prompt, bool addBeginningOfSequence) const noexcept
+TokenList LlavaPhiMini::tokenize(const std::string& prompt, bool addBeginningOfSequence) const noexcept
 {
     TokenList result = common_tokenize(m_ctx->llama.get(), prompt, addBeginningOfSequence, true);
     return result;
@@ -188,19 +189,17 @@ void LlavaPhiMini::generateResponse(int *numPast, int numPredict, const Response
         TokenList tokens = {id};
         decode(tokens, 1, numPast);
 
-        if (strcmp(ret.c_str(), "</s>") == 0)
-            break;
-        if (strstr(ret.c_str(), "###"))
-            break;
+        if (strcmp(ret.c_str(), "</s>") == 0) break;
+        if (strstr(ret.c_str(), "###")) break;
         response += ret;
-        if (strstr(response.c_str(), "<|im_end|>"))
-            break;
-        if (strstr(response.c_str(), "<|im_start|>"))
-            break;
-        if (strstr(response.c_str(), "USER:"))
-            break;
+        if (response.back() == '.') {
+            callback(response.append(" "));
+            response.clear();
+        }
+        if (strstr(response.c_str(), "<|im_end|>")) break;
+        if (strstr(response.c_str(), "<|im_start|>")) break;
+        if (strstr(response.c_str(), "USER:")) break;
     }
-    callback(response);
 }
 
 } // namespace ml
