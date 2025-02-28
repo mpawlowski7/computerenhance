@@ -47,6 +47,7 @@ private:
     QThread m_workerThread;
 
     std::unique_ptr<ImageWorker> m_worker;
+    QElapsedTimer m_elapsedTime;
 };
 
 }

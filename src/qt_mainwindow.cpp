@@ -31,6 +31,8 @@ void QtMainWindow::initialize()
     connect(m_worker.get(), &ImageWorker::responseReady, this, &QtMainWindow::setResponse, Qt::DirectConnection);
     connect(m_worker.get(), &ImageWorker::doneProcessing, [this]() {
         m_processing = false;
+        QString elapsed = QString::number(m_elapsedTime.elapsed() / 1000);
+        setResponse(" Done! (~" + elapsed + " s)");
     });
 
     m_worker->moveToThread(&m_workerThread);
@@ -42,6 +44,8 @@ void QtMainWindow::initialize()
 void QtMainWindow::loadImage(const QString& imagePath)
 {
     qDebug() << QThread::currentThreadId << __func__ ;
+
+    m_elapsedTime.start();
 
     m_response.clear();
     emit responseChanged();
