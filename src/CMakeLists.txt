@@ -24,9 +24,7 @@ qt_add_qml_module(${BINARY_NAME}
         QML_FILES
         MainWindow.qml
         RESOURCES
-        ../images/dummy.png
-        ../images/img01.jpg
-        ../images/img02.jpg
+        ${IMG_LIST}
 )
 
 target_link_libraries(${BINARY_NAME}
